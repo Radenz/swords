@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct Value {
     value: String,
     revealed_value: Option<String>,

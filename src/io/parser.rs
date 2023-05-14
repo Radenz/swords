@@ -118,11 +118,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_value(&mut self, is_secret: bool) -> ParseResult<Value> {
-        self.ensure_starter_byte(VALUE_STARTER_BYTE)?;
-
-        self.ensure_remaining_length(2, |remain, need| {
-            ParseError::UnexpectedEndOfValue(remain, need)
-        })?;
+        let starter_byte = if is_secret {
+            SECRET_VALUE_STARTER_BYTE
+        } else {
+            VALUE_STARTER_BYTE
+        };
+        self.ensure_starter_byte(starter_byte)?;
+        self.ensure_remaining_length_or(2, ParseError::UnexpectedEndOfFile)?;
 
         let (length_bytes, remaining_input) = self.remaining_input.split_at(2);
         self.remaining_input = remaining_input;
@@ -238,7 +240,11 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::{error::ParseError, util::MAGIC_NUMBER};
+    use crate::{
+        entity::value::{SECRET_VALUE_STARTER_BYTE, VALUE_STARTER_BYTE},
+        error::ParseError,
+        util::MAGIC_NUMBER,
+    };
 
     use super::Parser;
 
@@ -281,17 +287,93 @@ mod test {
 
     #[test]
     fn parse_value_success() {
-        todo!("Impl")
+        let mut parser = Parser::new();
+        parser.inject_input(&[VALUE_STARTER_BYTE, 0, 5, 0x68, 0x65, 0x6c, 0x6c, 0x6f]);
+        let result = parser.parse_value(false);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(!value.is_secret());
+        assert_eq!(&value.take(), "hello");
     }
 
     #[test]
     fn parse_value_success_secret() {
-        todo!("Impl")
+        let mut parser = Parser::new();
+        parser.inject_input(&[
+            SECRET_VALUE_STARTER_BYTE,
+            0,
+            5,
+            0x68,
+            0x65,
+            0x6c,
+            0x6c,
+            0x6f,
+        ]);
+        let result = parser.parse_value(true);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value.is_secret());
+        assert_eq!(&value.take(), "hello");
+    }
+
+    #[test]
+    fn parse_value_wrong_starter() {
+        let mut parser = Parser::new();
+        parser.inject_input(&[SECRET_VALUE_STARTER_BYTE]);
+        let result = parser.parse_value(false);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedStarterByte);
+    }
+
+    #[test]
+    fn parse_value_wrong_starter_secret() {
+        let mut parser = Parser::new();
+        parser.inject_input(&[VALUE_STARTER_BYTE]);
+        let result = parser.parse_value(true);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedStarterByte);
+    }
+
+    #[test]
+    fn parse_value_invalid_starter() {
+        let mut parser = Parser::new();
+        parser.inject_input(&[0xff, 0, 0, 0]);
+        let result = parser.parse_value(false);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedStarterByte);
+    }
+
+    #[test]
+    fn parse_value_empty() {
+        let mut parser = Parser::new();
+        parser.inject_input(&[]);
+        let result = parser.parse_value(false);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedEndOfFile);
+    }
+
+    #[test]
+    fn parse_value_eof_len() {
+        let mut parser = Parser::new();
+        parser.inject_input(&[VALUE_STARTER_BYTE, 0]);
+        let result = parser.parse_value(false);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedEndOfFile);
     }
 
     #[test]
     fn parse_value_eof() {
-        todo!("Impl")
+        let mut parser = Parser::new();
+        parser.inject_input(&[VALUE_STARTER_BYTE, 0, 3, 0, 0]);
+        let result = parser.parse_value(false);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedEndOfValue(2, 3));
     }
 
     #[test]

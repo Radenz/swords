@@ -2,9 +2,9 @@ use std::{collections::HashMap, os::raw};
 
 use crate::{
     entity::{
-        collection::{self, Collection, COLLECTION_ENDER_BYTE, COLLECTION_STARTER_BYTE},
+        collection::{Collection, COLLECTION_ENDER_BYTE, COLLECTION_STARTER_BYTE},
         record::{Record, RECORD_STARTER_BYTE},
-        value::{self, Value, SECRET_VALUE_STARTER_BYTE, VALUE_STARTER_BYTE},
+        value::{Value, SECRET_VALUE_STARTER_BYTE, VALUE_STARTER_BYTE},
         Entries, Header, Swd, VERSION_BYTES_LENGTH,
     },
     error::ParseError,
@@ -107,10 +107,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_key_value(&mut self) -> ParseResult<(String, Value)> {
-        self.ensure_starter_byte(VALUE_STARTER_BYTE)?;
         let key = self.parse_value(false)?;
-        let starter_byte =
-            self.ensure_starter_byte_in(&[VALUE_STARTER_BYTE, SECRET_VALUE_STARTER_BYTE])?;
+        let starter_byte = self.peek_starter_byte()?;
         let is_secret_value = starter_byte == SECRET_VALUE_STARTER_BYTE;
         let value = self.parse_value(is_secret_value)?;
 
@@ -378,17 +376,149 @@ mod test {
 
     #[test]
     fn parse_key_value_success() {
-        todo!("Impl")
+        let mut parser = Parser::new();
+        parser.inject_input(&[
+            VALUE_STARTER_BYTE,
+            0,
+            3,
+            0x6d,
+            0x73,
+            0x67,
+            VALUE_STARTER_BYTE,
+            0,
+            5,
+            0x68,
+            0x65,
+            0x6c,
+            0x6c,
+            0x6f,
+        ]);
+        let result = parser.parse_key_value();
+        assert!(result.is_ok());
+        let (key, value) = result.unwrap();
+        assert!(!value.is_secret());
+        assert_eq!(&key, "msg");
+        assert_eq!(&value.take(), "hello");
+    }
+
+    #[test]
+    fn parse_key_value_success_secret() {
+        let mut parser = Parser::new();
+        parser.inject_input(&[
+            VALUE_STARTER_BYTE,
+            0,
+            3,
+            0x6d,
+            0x73,
+            0x67,
+            SECRET_VALUE_STARTER_BYTE,
+            0,
+            5,
+            0x68,
+            0x65,
+            0x6c,
+            0x6c,
+            0x6f,
+        ]);
+        let result = parser.parse_key_value();
+        assert!(result.is_ok());
+        let (key, value) = result.unwrap();
+        assert!(value.is_secret());
+        assert_eq!(&key, "msg");
+        assert_eq!(&value.take(), "hello");
+    }
+
+    #[test]
+    fn parse_key_value_empty() {
+        let mut parser = Parser::new();
+        parser.inject_input(&[]);
+        let result = parser.parse_key_value();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedEndOfFile)
     }
 
     #[test]
     fn parse_key_value_secret_key() {
-        todo!("Impl")
+        let mut parser = Parser::new();
+        parser.inject_input(&[
+            SECRET_VALUE_STARTER_BYTE,
+            0,
+            3,
+            0x6d,
+            0x73,
+            0x67,
+            VALUE_STARTER_BYTE,
+            0,
+            5,
+            0x68,
+            0x65,
+            0x6c,
+            0x6c,
+            0x6f,
+        ]);
+        let result = parser.parse_key_value();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedStarterByte)
     }
 
     #[test]
     fn parse_key_value_unexpected_starter_byte() {
-        todo!("Impl")
+        let mut parser = Parser::new();
+        parser.inject_input(&[
+            0xff,
+            0,
+            3,
+            0x6d,
+            0x73,
+            0x67,
+            VALUE_STARTER_BYTE,
+            0,
+            5,
+            0x68,
+            0x65,
+            0x6c,
+            0x6c,
+            0x6f,
+        ]);
+        let result = parser.parse_key_value();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedStarterByte)
+    }
+
+    #[test]
+    fn parse_key_value_eof_key() {
+        let mut parser = Parser::new();
+        parser.inject_input(&[VALUE_STARTER_BYTE, 0, 3, 0x6d]);
+        let result = parser.parse_key_value();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedEndOfValue(1, 3))
+    }
+
+    #[test]
+    fn parse_key_value_eof_value() {
+        let mut parser = Parser::new();
+        parser.inject_input(&[
+            VALUE_STARTER_BYTE,
+            0,
+            3,
+            0x6d,
+            0x73,
+            0x67,
+            VALUE_STARTER_BYTE,
+            0,
+            5,
+            0x68,
+            0x65,
+            0x6c,
+        ]);
+        let result = parser.parse_key_value();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedEndOfValue(3, 5))
     }
 
     #[test]
@@ -403,6 +533,11 @@ mod test {
 
     #[test]
     fn parse_record_missing_secret() {
+        todo!("Impl")
+    }
+
+    #[test]
+    fn parse_record_unexpected_eof() {
         todo!("Impl")
     }
 

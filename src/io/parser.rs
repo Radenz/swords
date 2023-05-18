@@ -66,7 +66,7 @@ impl<'a> Parser<'a> {
             let (key, value) = self.parse_key_value()?;
             raw_record.insert(key, value);
 
-            starter_byte = self.peek_starter_byte()?;
+            starter_byte = self.peek_starter_byte().unwrap_or(0xff);
         }
 
         let record: Record = raw_record.try_into()?;
@@ -100,7 +100,8 @@ impl<'a> Parser<'a> {
             starter_byte = self.peek_starter_byte()?;
         }
 
-        let raw_collection = (children, records, extras);
+        let raw_collection: (Vec<Collection>, Vec<Record>, HashMap<String, Value>) =
+            (children, records, extras);
         let collection: Collection = raw_collection.try_into()?;
 
         Ok(collection)
@@ -236,7 +237,10 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod test {
     use crate::{
-        entity::value::{SECRET_VALUE_STARTER_BYTE, VALUE_STARTER_BYTE},
+        entity::{
+            record::RECORD_STARTER_BYTE,
+            value::{SECRET_VALUE_STARTER_BYTE, VALUE_STARTER_BYTE},
+        },
         error::ParseError,
         util::MAGIC_NUMBER,
     };
@@ -523,23 +527,166 @@ mod test {
     }
 
     #[test]
+    fn parse_key_value_no_value() {
+        let mut parser = Parser::new();
+        parser.inject_input(&[VALUE_STARTER_BYTE, 0, 3, 0x6d, 0x73, 0x67]);
+        let result = parser.parse_key_value();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedEndOfFile)
+    }
+
+    #[test]
     fn parse_record_success() {
-        todo!("Impl")
+        let mut parser = Parser::new();
+        let mut input = vec![RECORD_STARTER_BYTE];
+        input.push(VALUE_STARTER_BYTE);
+        let key = "label";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        input.push(VALUE_STARTER_BYTE);
+        let key = "abc";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        input.push(VALUE_STARTER_BYTE);
+        let key: &str = "secret";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        input.push(SECRET_VALUE_STARTER_BYTE);
+        let key: &str = "def";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        parser.inject_input(&input);
+        let result = parser.parse_record();
+        assert!(result.is_ok());
+        let record = result.unwrap();
+        assert_eq!(record.label(), "abc");
+        let expected_value: Box<[u8]> = Box::new(['d' as u8, 'e' as u8, 'f' as u8]);
+        assert_eq!(record.secret(), &expected_value);
     }
 
     #[test]
     fn parse_record_missing_label() {
-        todo!("Impl")
+        let mut parser = Parser::new();
+        let mut input = vec![RECORD_STARTER_BYTE];
+        input.push(VALUE_STARTER_BYTE);
+        let key: &str = "secret";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        input.push(SECRET_VALUE_STARTER_BYTE);
+        let key: &str = "def";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        parser.inject_input(&input);
+        let result = parser.parse_record();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::MissingRequiredField("label".to_owned()));
     }
 
     #[test]
     fn parse_record_missing_secret() {
-        todo!("Impl")
+        let mut parser = Parser::new();
+        let mut input = vec![RECORD_STARTER_BYTE];
+        input.push(VALUE_STARTER_BYTE);
+        let key = "label";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        input.push(VALUE_STARTER_BYTE);
+        let key = "abc";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        parser.inject_input(&input);
+        let result = parser.parse_record();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::MissingRequiredField("secret".to_owned()));
     }
 
     #[test]
     fn parse_record_unexpected_eof() {
-        todo!("Impl")
+        let mut parser = Parser::new();
+        let mut input = vec![RECORD_STARTER_BYTE];
+        input.push(VALUE_STARTER_BYTE);
+        let key = "label";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        input.push(VALUE_STARTER_BYTE);
+        let key = "abc";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        input.push(VALUE_STARTER_BYTE);
+        let key: &str = "secret";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        input.push(SECRET_VALUE_STARTER_BYTE);
+        let key: &str = "def";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            input.push(byte);
+        }
+        for ch in key.chars() {
+            input.push(ch as u8);
+        }
+        input.pop();
+        parser.inject_input(&input);
+        let result = parser.parse_record();
+        assert!(result.is_err());
     }
 
     #[test]

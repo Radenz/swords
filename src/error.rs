@@ -8,6 +8,7 @@ pub enum ParseError {
     UnexpectedEndOfFile,
     MissingRequiredField(String),
     ForbiddenSecretField(String),
+    ForbiddenNonSecretField(String),
     UnexpectedEndOfValue(usize, usize),
     EncodingError(Utf8Error),
 }

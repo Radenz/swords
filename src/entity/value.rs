@@ -30,6 +30,10 @@ impl Value {
     pub fn is_secret(&self) -> bool {
         self.is_secret
     }
+
+    pub fn take(self) -> Box<[u8]> {
+        self.value
+    }
 }
 
 impl TryFrom<Value> for String {

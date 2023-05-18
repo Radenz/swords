@@ -15,7 +15,7 @@ pub struct Swd {
     root: Collection,
 }
 
-pub const REQUIRED_HEADER_FIELDS: [&str; 3] = ["mkhf", "khf", "salt"];
+pub const REQUIRED_HEADER_FIELDS: [&str; 4] = ["v", "mkhf", "khf", "salt"];
 
 pub struct Header {
     version: u32,
@@ -77,6 +77,11 @@ impl TryFrom<Entries> for Header {
             }
         }
 
+        let version_bytes = raw_header.remove("mkhf").unwrap().take();
+        if version_bytes.len() != VERSION_BYTES_LENGTH {
+            return Err(ParseError::InvalidVersionNumber);
+        }
+        let version = u32::from_be_bytes((version_bytes[0..4]).try_into().unwrap());
         let master_key_hash_function_name = raw_header.remove("mkhf").unwrap().parse_string()?;
         let key_hash_function_name = raw_header.remove("khf").unwrap().parse_string()?;
         let salt = raw_header.remove("salt").unwrap().parse_string()?;

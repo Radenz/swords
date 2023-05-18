@@ -38,7 +38,6 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_header(&mut self) -> ParseResult<Header> {
-        let version = self.parse_version()?;
         let mut raw_header: Entries = HashMap::new();
 
         self.ensure_remaining_input()?;
@@ -52,7 +51,6 @@ impl<'a> Parser<'a> {
         }
 
         let mut header: Header = raw_header.try_into()?;
-        header.set_version(version);
 
         Ok(header)
     }
@@ -139,16 +137,6 @@ impl<'a> Parser<'a> {
         self.remaining_input = remaining_input;
 
         Ok(Value::new(value_bytes.into(), is_secret))
-    }
-
-    fn parse_version(&mut self) -> ParseResult<u32> {
-        self.ensure_remaining_length_or(VERSION_BYTES_LENGTH, ParseError::UnexpectedEndOfFile)?;
-
-        let (version_bytes, remaining_input) = self.remaining_input.split_at(VERSION_BYTES_LENGTH);
-        self.remaining_input = remaining_input;
-        let version = u32::from_be_bytes(version_bytes.try_into().unwrap());
-
-        Ok(version)
     }
 
     fn ensure_magic_number(&mut self) -> ParseResult<()> {
@@ -275,16 +263,6 @@ mod test {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert_eq!(err, ParseError::UnexpectedEndOfFile)
-    }
-
-    #[test]
-    fn parse_version() {
-        let mut parser = Parser::new();
-        parser.inject_input(&[0, 0, 0, 1]);
-        let result = parser.parse_version();
-        assert!(result.is_ok());
-        let version = result.unwrap();
-        assert_eq!(version, 1);
     }
 
     #[test]

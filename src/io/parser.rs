@@ -112,7 +112,7 @@ impl<'a> Parser<'a> {
         let is_secret_value = starter_byte == SECRET_VALUE_STARTER_BYTE;
         let value = self.parse_value(is_secret_value)?;
 
-        Ok((key.take(), value))
+        Ok((key.parse_string()?, value))
     }
 
     fn parse_value(&mut self, is_secret: bool) -> ParseResult<Value> {
@@ -134,11 +134,8 @@ impl<'a> Parser<'a> {
 
         let (value_bytes, remaining_input) = self.remaining_input.split_at(length);
         self.remaining_input = remaining_input;
-        let value = std::str::from_utf8(value_bytes)
-            .map_err(|err| ParseError::EncodingError(err))?
-            .to_owned();
 
-        Ok(Value::new(value, is_secret))
+        Ok(Value::new(value_bytes.into(), is_secret))
     }
 
     fn parse_version(&mut self) -> ParseResult<u32> {
@@ -291,7 +288,8 @@ mod test {
         assert!(result.is_ok());
         let value = result.unwrap();
         assert!(!value.is_secret());
-        assert_eq!(&value.take(), "hello");
+        let value_str: String = value.try_into().unwrap();
+        assert_eq!(&value_str, "hello");
     }
 
     #[test]
@@ -311,7 +309,8 @@ mod test {
         assert!(result.is_ok());
         let value = result.unwrap();
         assert!(value.is_secret());
-        assert_eq!(&value.take(), "hello");
+        let value_str: String = value.try_into().unwrap();
+        assert_eq!(&value_str, "hello");
     }
 
     #[test]
@@ -398,7 +397,8 @@ mod test {
         let (key, value) = result.unwrap();
         assert!(!value.is_secret());
         assert_eq!(&key, "msg");
-        assert_eq!(&value.take(), "hello");
+        let value_str: String = value.try_into().unwrap();
+        assert_eq!(&value_str, "hello");
     }
 
     #[test]
@@ -425,7 +425,8 @@ mod test {
         let (key, value) = result.unwrap();
         assert!(value.is_secret());
         assert_eq!(&key, "msg");
-        assert_eq!(&value.take(), "hello");
+        let value_str: String = value.try_into().unwrap();
+        assert_eq!(&value_str, "hello");
     }
 
     #[test]

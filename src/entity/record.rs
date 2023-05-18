@@ -43,8 +43,8 @@ impl TryFrom<Entries> for Record {
             }
         }
 
-        let label = raw_record.remove("label").unwrap().take();
-        let secret = raw_record.remove("secret").unwrap().take();
+        let label = raw_record.remove("label").unwrap().parse_string()?;
+        let secret = raw_record.remove("secret").unwrap().parse_string()?;
 
         Ok(Self {
             label,

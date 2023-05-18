@@ -77,9 +77,9 @@ impl TryFrom<Entries> for Header {
             }
         }
 
-        let master_key_hash_function_name = raw_header.remove("mkhf").unwrap().take();
-        let key_hash_function_name = raw_header.remove("khf").unwrap().take();
-        let salt = raw_header.remove("salt").unwrap().take();
+        let master_key_hash_function_name = raw_header.remove("mkhf").unwrap().parse_string()?;
+        let key_hash_function_name = raw_header.remove("khf").unwrap().parse_string()?;
+        let salt = raw_header.remove("salt").unwrap().parse_string()?;
 
         Ok(Self::new(
             0,

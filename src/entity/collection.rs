@@ -57,7 +57,7 @@ impl TryFrom<(Vec<Collection>, Vec<Record>, Entries)> for Collection {
             }
         }
 
-        let label = extras.remove("label").unwrap().take();
+        let label = extras.remove("label").unwrap().parse_string()?;
 
         Ok(Self {
             label,

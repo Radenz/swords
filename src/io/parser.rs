@@ -100,6 +100,8 @@ impl<'a> Parser<'a> {
             starter_byte = self.peek_starter_byte()?;
         }
 
+        self.take_bytes_or(1, ParseError::UnexpectedEndOfFile);
+
         let raw_collection: (Vec<Collection>, Vec<Record>, HashMap<String, Value>) =
             (children, records, extras);
         let collection: Collection = raw_collection.try_into()?;
@@ -189,7 +191,7 @@ impl<'a> Parser<'a> {
         length: usize,
         err_fn: impl FnOnce(usize, usize) -> ParseError,
     ) -> ParseResult<&[u8]> {
-        self.ensure_remaining_length(MAGIC_NUMBER.len(), err_fn)?;
+        self.ensure_remaining_length(length, err_fn)?;
         let (bytes, remaining_input) = self.remaining_input.split_at(length);
         self.remaining_input = remaining_input;
         Ok(bytes)
@@ -238,6 +240,7 @@ impl<'a> Parser<'a> {
 mod test {
     use crate::{
         entity::{
+            collection::{Collection, COLLECTION_ENDER_BYTE, COLLECTION_STARTER_BYTE},
             record::RECORD_STARTER_BYTE,
             value::{SECRET_VALUE_STARTER_BYTE, VALUE_STARTER_BYTE},
         },
@@ -540,42 +543,8 @@ mod test {
     fn parse_record_success() {
         let mut parser = Parser::new();
         let mut input = vec![RECORD_STARTER_BYTE];
-        input.push(VALUE_STARTER_BYTE);
-        let key = "label";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
-        input.push(VALUE_STARTER_BYTE);
-        let key = "abc";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
-        input.push(VALUE_STARTER_BYTE);
-        let key: &str = "secret";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
-        input.push(SECRET_VALUE_STARTER_BYTE);
-        let key: &str = "def";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
+        input.append(&mut dummy_label());
+        input.append(&mut dummy_secret());
         parser.inject_input(&input);
         let result = parser.parse_record();
         assert!(result.is_ok());
@@ -586,27 +555,23 @@ mod test {
     }
 
     #[test]
+    fn parse_record_unexpected_starter_byte() {
+        let mut parser = Parser::new();
+        let mut input = vec![0xff];
+        input.append(&mut dummy_label());
+        input.append(&mut dummy_secret());
+        parser.inject_input(&input);
+        let result = parser.parse_record();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedStarterByte);
+    }
+
+    #[test]
     fn parse_record_missing_label() {
         let mut parser = Parser::new();
         let mut input = vec![RECORD_STARTER_BYTE];
-        input.push(VALUE_STARTER_BYTE);
-        let key: &str = "secret";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
-        input.push(SECRET_VALUE_STARTER_BYTE);
-        let key: &str = "def";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
+        input.append(&mut dummy_secret());
         parser.inject_input(&input);
         let result = parser.parse_record();
         assert!(result.is_err());
@@ -618,24 +583,7 @@ mod test {
     fn parse_record_missing_secret() {
         let mut parser = Parser::new();
         let mut input = vec![RECORD_STARTER_BYTE];
-        input.push(VALUE_STARTER_BYTE);
-        let key = "label";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
-        input.push(VALUE_STARTER_BYTE);
-        let key = "abc";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
+        input.append(&mut dummy_label());
         parser.inject_input(&input);
         let result = parser.parse_record();
         assert!(result.is_err());
@@ -647,42 +595,8 @@ mod test {
     fn parse_record_unexpected_eof() {
         let mut parser = Parser::new();
         let mut input = vec![RECORD_STARTER_BYTE];
-        input.push(VALUE_STARTER_BYTE);
-        let key = "label";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
-        input.push(VALUE_STARTER_BYTE);
-        let key = "abc";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
-        input.push(VALUE_STARTER_BYTE);
-        let key: &str = "secret";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
-        input.push(SECRET_VALUE_STARTER_BYTE);
-        let key: &str = "def";
-        let len = key.len() as u16;
-        for byte in len.to_be_bytes() {
-            input.push(byte);
-        }
-        for ch in key.chars() {
-            input.push(ch as u8);
-        }
+        input.append(&mut dummy_label());
+        input.append(&mut dummy_secret());
         input.pop();
         parser.inject_input(&input);
         let result = parser.parse_record();
@@ -690,7 +604,129 @@ mod test {
     }
 
     #[test]
-    fn parse_collection() {
-        todo!("Impl")
+    fn parse_collection_success() {
+        let mut parser = Parser::new();
+        let input = dummy_collection();
+        parser.inject_input(&input);
+        let result = parser.parse_collection();
+        assert!(result.is_ok());
+        let collection: Collection = result.unwrap();
+        assert_eq!(collection.label(), "abc");
+        let records = collection.records();
+        assert_eq!(records.len(), 2);
+    }
+
+    #[test]
+    fn parse_collection_success_nested() {
+        let mut parser = Parser::new();
+        let input = dummy_collection_nested();
+        parser.inject_input(&input);
+        let result = parser.parse_collection();
+        assert!(result.is_ok());
+        let collection: Collection = result.unwrap();
+        assert_eq!(collection.label(), "abc");
+        let children = collection.children();
+        let records = collection.records();
+        assert_eq!(children.len(), 2);
+        assert_eq!(records.len(), 3);
+    }
+
+    #[test]
+    fn parse_collection_unexpected_starter_byte() {
+        let mut parser = Parser::new();
+        let mut input = dummy_collection();
+        input[0] = 0xff;
+        parser.inject_input(&input);
+        let result = parser.parse_collection();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::UnexpectedStarterByte);
+    }
+
+    #[test]
+    fn parse_collection_missing_label() {
+        let mut parser = Parser::new();
+        let mut input = dummy_collection();
+        let label_length = dummy_label().len();
+        input.drain(1..label_length + 1);
+        parser.inject_input(&input);
+        let result = parser.parse_collection();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err, ParseError::MissingRequiredField("label".to_owned()));
+    }
+
+    fn dummy_label() -> Vec<u8> {
+        let mut data = vec![];
+        data.push(VALUE_STARTER_BYTE);
+        let key = "label";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            data.push(byte);
+        }
+        for ch in key.chars() {
+            data.push(ch as u8);
+        }
+        data.push(VALUE_STARTER_BYTE);
+        let key = "abc";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            data.push(byte);
+        }
+        for ch in key.chars() {
+            data.push(ch as u8);
+        }
+        data
+    }
+
+    fn dummy_secret() -> Vec<u8> {
+        let mut data = vec![];
+        data.push(VALUE_STARTER_BYTE);
+        let key: &str = "secret";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            data.push(byte);
+        }
+        for ch in key.chars() {
+            data.push(ch as u8);
+        }
+        data.push(SECRET_VALUE_STARTER_BYTE);
+        let key: &str = "def";
+        let len = key.len() as u16;
+        for byte in len.to_be_bytes() {
+            data.push(byte);
+        }
+        for ch in key.chars() {
+            data.push(ch as u8);
+        }
+        data
+    }
+
+    fn dummy_record() -> Vec<u8> {
+        let mut data = vec![RECORD_STARTER_BYTE];
+        data.append(&mut dummy_label());
+        data.append(&mut dummy_secret());
+        data
+    }
+
+    fn dummy_collection() -> Vec<u8> {
+        let mut data = vec![COLLECTION_STARTER_BYTE];
+        data.append(&mut dummy_label());
+        data.append(&mut dummy_record());
+        data.append(&mut dummy_record());
+        data.push(COLLECTION_ENDER_BYTE);
+        data
+    }
+
+    fn dummy_collection_nested() -> Vec<u8> {
+        let mut data = vec![COLLECTION_STARTER_BYTE];
+        data.append(&mut dummy_label());
+        data.append(&mut dummy_collection());
+        data.append(&mut dummy_collection());
+        data.append(&mut dummy_record());
+        data.append(&mut dummy_record());
+        data.append(&mut dummy_record());
+        data.push(COLLECTION_ENDER_BYTE);
+        data
     }
 }

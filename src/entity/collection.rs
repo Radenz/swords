@@ -27,6 +27,7 @@ pub const REQUIRED_COLLECTION_FIELDS: [&str; 1] = ["label"];
 ///
 /// Length consist of 4 byte ordered in big endian ordering
 /// Length is required to determine where does the collection end
+#[derive(Debug)]
 pub struct Collection {
     label: String,
     children: Vec<Collection>,
@@ -37,6 +38,18 @@ pub struct Collection {
 impl Collection {
     pub fn new(label: String) -> Self {
         unimplemented!()
+    }
+
+    pub fn label(&self) -> &String {
+        &self.label
+    }
+
+    pub fn children(&self) -> &Vec<Collection> {
+        &self.children
+    }
+
+    pub fn records(&self) -> &Vec<Record> {
+        &self.records
     }
 }
 

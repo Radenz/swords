@@ -1,6 +1,7 @@
 use std::{collections::HashMap, os::raw};
 
 use crate::{
+    cipher::CipherRegistry,
     entity::{
         collection::{Collection, COLLECTION_ENDER_BYTE, COLLECTION_STARTER_BYTE},
         record::{Record, RECORD_STARTER_BYTE},
@@ -8,6 +9,7 @@ use crate::{
         Entries, Header, Swd, VERSION_BYTES_LENGTH,
     },
     error::ParseError,
+    hash::HashFunctionRegistry,
     util::MAGIC_NUMBER,
 };
 
@@ -30,7 +32,12 @@ impl<'a> Parser<'a> {
         let header = self.parse_header()?;
         let collection = self.parse_collection()?;
 
-        Ok(Swd::from_root(header, collection))
+        Ok(Swd::from_root(
+            header,
+            collection,
+            CipherRegistry::default(),
+            HashFunctionRegistry::default(),
+        ))
     }
 
     fn inject_input(&mut self, input: &'a [u8]) {

@@ -1,5 +1,9 @@
 use self::{collection::Collection, value::Value};
-use crate::{error::ParseError, hash::HashFunction};
+use crate::{
+    cipher::CipherRegistry,
+    error::ParseError,
+    hash::{HashFunction, HashFunctionRegistry},
+};
 use std::collections::HashMap;
 
 pub mod collection;
@@ -13,30 +17,88 @@ pub type Entries = HashMap<String, Value>;
 pub struct Swd {
     header: Header,
     root: Collection,
+    cipher_registry: CipherRegistry,
+    hash_function_registry: HashFunctionRegistry,
 }
 
-pub const REQUIRED_HEADER_FIELDS: [&str; 4] = ["v", "mkhf", "khf", "salt"];
+pub const REQUIRED_HEADER_FIELDS: [&str; 6] = ["v", "mkhf", "khf", "mks", "ks", "mkh"];
 
 pub struct Header {
     version: u32,
-    master_key_hash_function_name: String,
-    master_key_hash_function: Option<Box<HashFunction>>,
-    salt: String,
-    key_hash_function_name: String,
-    key_hash_function: Option<Box<HashFunction>>,
+    master_key_hash_fn: String,
+    key_hash_fn: String,
+    master_key_hash: Vec<u8>,
+    master_key_salt: Vec<u8>,
+    key_salt: Vec<u8>,
+    key: Option<Vec<u8>>,
     extras: Entries,
 }
 
 impl Swd {
-    pub fn new(header: Header, root_label: String) -> Self {
+    pub fn new(
+        header: Header,
+        root_label: String,
+        cipher_registry: CipherRegistry,
+        hash_function_registry: HashFunctionRegistry,
+    ) -> Self {
         Self {
             header,
             root: Collection::new(root_label),
+            cipher_registry,
+            hash_function_registry,
         }
     }
 
-    pub fn from_root(header: Header, root: Collection) -> Self {
-        Self { header, root }
+    pub fn from_root(
+        header: Header,
+        root: Collection,
+        cipher_registry: CipherRegistry,
+        hash_function_registry: HashFunctionRegistry,
+    ) -> Self {
+        Self {
+            header,
+            root,
+            cipher_registry,
+            hash_function_registry,
+        }
+    }
+
+    pub fn access(&mut self, master_key: &[u8]) -> bool {
+        let valid = self.validate_master_key(master_key);
+        if !valid {
+            return false;
+        }
+        self.populate_key(master_key);
+        true
+    }
+
+    fn validate_master_key(&self, master_key: &[u8]) -> bool {
+        let hash = self.get_master_key_hash_fn();
+        let mut master_key = master_key.to_vec();
+        master_key.extend_from_slice(self.header.master_key_salt());
+        let master_key_hash = hash(&master_key);
+        let stored_master_key_hash = self.header.master_key_hash();
+        &master_key_hash == stored_master_key_hash
+    }
+
+    fn populate_key(&mut self, master_key: &[u8]) {
+        let hash = self.get_key_hash_fn();
+        let mut master_key = master_key.to_vec();
+        master_key.extend_from_slice(self.header.key_salt());
+        let key = hash(&master_key);
+        self.header.set_key(key);
+    }
+
+    fn get_master_key_hash_fn(&self) -> &Box<HashFunction> {
+        let master_key_hash_fn = self.header.master_key_hash_fn();
+        let hash_fn = self.hash_function_registry.get_function(master_key_hash_fn);
+        hash_fn
+    }
+
+    fn get_key_hash_fn(&self) -> &Box<HashFunction> {
+        let key_hash_fn = self.header.key_hash_fn();
+        let hash_fn = self.hash_function_registry.get_function(key_hash_fn);
+        hash_fn
     }
 }
 
@@ -45,22 +107,49 @@ impl Header {
         version: u32,
         master_key_hash_function_name: String,
         key_hash_function_name: String,
-        salt: String,
+        master_key_hash: &[u8],
+        master_key_salt: &[u8],
+        key_salt: &[u8],
         extras: Entries,
     ) -> Self {
         Self {
             version,
-            master_key_hash_function_name,
-            key_hash_function_name,
-            salt,
+            master_key_hash_fn: master_key_hash_function_name,
+            key_hash_fn: key_hash_function_name,
+            master_key_hash: master_key_hash.to_vec(),
+            master_key_salt: master_key_salt.to_vec(),
+            key_salt: key_salt.to_vec(),
+            key: None,
             extras,
-            master_key_hash_function: None,
-            key_hash_function: None,
         }
     }
 
-    pub fn set_version(&mut self, version: u32) {
-        self.version = version;
+    pub fn master_key_hash_fn(&self) -> &String {
+        &self.master_key_hash_fn
+    }
+
+    pub fn master_key_hash(&self) -> &Vec<u8> {
+        &self.master_key_hash
+    }
+
+    pub fn master_key_salt(&self) -> &Vec<u8> {
+        &self.master_key_salt
+    }
+
+    pub fn key_hash_fn(&self) -> &String {
+        &self.key_hash_fn
+    }
+
+    pub fn key_salt(&self) -> &Vec<u8> {
+        &self.key_salt
+    }
+
+    pub fn set_key(&mut self, key: Vec<u8>) {
+        self.key = Some(key);
+    }
+
+    pub fn get_key(&self) -> Option<&Vec<u8>> {
+        self.key.as_ref()
     }
 }
 
@@ -82,15 +171,19 @@ impl TryFrom<Entries> for Header {
             return Err(ParseError::InvalidVersionNumber);
         }
         let version = u32::from_be_bytes((version_bytes[0..4]).try_into().unwrap());
-        let master_key_hash_function_name = raw_header.remove("mkhf").unwrap().parse_string()?;
-        let key_hash_function_name = raw_header.remove("khf").unwrap().parse_string()?;
-        let salt = raw_header.remove("salt").unwrap().parse_string()?;
+        let master_key_hash_fn = raw_header.remove("mkhf").unwrap().parse_string()?;
+        let key_hash_fn = raw_header.remove("khf").unwrap().parse_string()?;
+        let master_key_salt = raw_header.remove("mks").unwrap().take();
+        let key_salt = raw_header.remove("ks").unwrap().take();
+        let master_key_hash = raw_header.remove("mkh").unwrap().take();
 
         Ok(Self::new(
             0,
-            master_key_hash_function_name,
-            key_hash_function_name,
-            salt,
+            master_key_hash_fn,
+            key_hash_fn,
+            &master_key_hash,
+            &master_key_salt,
+            &key_salt,
             raw_header,
         ))
     }

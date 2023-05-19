@@ -69,3 +69,80 @@ fn aes_decrypt(
     let encrypted = cipher.decrypt(Nonce::from_slice(nonce), data);
     encrypted.map_err(|_| EncryptError::EncryptionError)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{encrypt::aes_encrypt, error::EncryptError};
+    use aes_gcm::{Aes256Gcm, KeySizeUser};
+    use std::collections::HashMap;
+
+    use super::aes_decrypt;
+
+    #[test]
+    fn aes_encrypt_ok() {
+        let key: &mut [u8] = &mut [0u8; 32];
+        for i in 0..32 {
+            key[i] = i as u8;
+        }
+        let data = b"Example dummy data";
+        let nonce: &[u8] = b"dummy nonce ";
+        let mut extras = HashMap::new();
+        extras.insert("nonce".to_owned(), nonce);
+        let result = aes_encrypt(data, key, extras);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn aes_encrypt_missing_nonce() {
+        let key: &mut [u8] = &mut [0u8; 32];
+        for i in 0..32 {
+            key[i] = i as u8;
+        }
+        let data = b"Example dummy data";
+        let nonce: &[u8] = b"dummy nonce ";
+        let mut extras = HashMap::new();
+        let result = aes_encrypt(data, key, extras);
+        assert_eq!(
+            result,
+            Err(EncryptError::MissingRequiredExtra("nonce".to_owned()))
+        );
+    }
+
+    #[test]
+    fn aes_decrypt_ok() {
+        let key: &mut [u8] = &mut [0u8; 32];
+        for i in 0..32 {
+            key[i] = i as u8;
+        }
+        let data = b"Example dummy data";
+        let nonce: &[u8] = b"dummy nonce ";
+        let mut extras = HashMap::new();
+        extras.insert("nonce".to_owned(), nonce);
+        let result = aes_encrypt(data, key, extras.clone());
+        let encrypted = result.unwrap();
+        let result = aes_decrypt(&encrypted, key, extras);
+        assert!(result.is_ok());
+        let decrypted = result.unwrap();
+        assert_eq!(&decrypted, data);
+    }
+
+    #[test]
+    fn aes_decrypt_missing_nonce() {
+        let key: &mut [u8] = &mut [0u8; 32];
+        for i in 0..32 {
+            key[i] = i as u8;
+        }
+        let data = b"Example dummy data";
+        let nonce: &[u8] = b"dummy nonce ";
+        let mut extras = HashMap::new();
+        extras.insert("nonce".to_owned(), nonce);
+        let result = aes_encrypt(data, key, extras.clone());
+        let encrypted = result.unwrap();
+        extras.remove("nonce");
+        let result = aes_decrypt(&encrypted, key, extras);
+        assert_eq!(
+            result,
+            Err(EncryptError::MissingRequiredExtra("nonce".to_owned()))
+        );
+    }
+}

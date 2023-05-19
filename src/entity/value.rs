@@ -41,9 +41,18 @@ impl Value {
         let size = length + VALUE_LENGTH_BYTES_LENGTH;
         let mut bytes: Vec<u8> = Vec::with_capacity(size);
         let length_bytes = &(length as u16).to_be_bytes();
+        bytes.push(self.get_starter_byte());
         bytes.extend_from_slice(length_bytes);
         bytes.extend_from_slice(&self.value);
         bytes
+    }
+
+    fn get_starter_byte(&self) -> u8 {
+        if self.is_secret {
+            SECRET_VALUE_STARTER_BYTE
+        } else {
+            VALUE_STARTER_BYTE
+        }
     }
 }
 

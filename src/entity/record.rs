@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::error::ParseError;
+use crate::{cipher::DecryptFn, error::ParseError};
 
 use super::{value::Value, Entries};
 
@@ -53,8 +53,22 @@ impl Record {
             .insert(key.to_owned(), Value::new(value, is_secret));
     }
 
-    pub fn reveal(&mut self, encrypt_fn: impl FnOnce(&[u8], &[u8]) -> bool) {
-        unimplemented!()
+    pub fn reveal(&mut self, decrypt_fn: &Box<DecryptFn>, key: &[u8]) -> bool {
+        let decrypt_extras: HashMap<String, &[u8]> = self
+            .extras
+            .iter()
+            .map(|(key, value)| (key.clone(), value.inner()))
+            .collect();
+        let result = decrypt_fn(&self.secret, key, decrypt_extras);
+
+        if let Err(_) = result {
+            return false;
+        }
+
+        let secret_bytes = result.unwrap();
+        let secret = std::str::from_utf8(&secret_bytes).unwrap().to_owned();
+        self.revealed_secret = Some(secret);
+        true
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

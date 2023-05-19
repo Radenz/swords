@@ -36,6 +36,10 @@ impl Value {
         self.value
     }
 
+    pub fn inner(&self) -> &[u8] {
+        &self.value
+    }
+
     pub fn str_to_bytes(string: &str, is_secret: bool) -> Vec<u8> {
         Self::new(string.as_bytes(), is_secret).to_bytes()
     }

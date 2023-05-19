@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-pub mod encrypt;
+pub mod cipher;
 pub mod entity;
 pub mod error;
 pub mod hash;

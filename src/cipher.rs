@@ -5,47 +5,43 @@ use aes_gcm::{
     Aes256Gcm, KeyInit, KeySizeUser, Nonce,
 };
 
-use crate::error::EncryptError;
+use crate::error::CipherError;
 
-pub type EncryptResult<T> = Result<T, EncryptError>;
-pub type EncryptFn = dyn Fn(&[u8], &[u8], HashMap<String, &[u8]>) -> EncryptResult<Vec<u8>>;
-pub type DecryptFn = dyn Fn(&[u8], &[u8], HashMap<String, &[u8]>) -> EncryptResult<Vec<u8>>;
+pub type CipherResult<T> = Result<T, CipherError>;
+pub type EncryptFn = dyn Fn(&[u8], &[u8], HashMap<String, &[u8]>) -> CipherResult<Vec<u8>>;
+pub type DecryptFn = dyn Fn(&[u8], &[u8], HashMap<String, &[u8]>) -> CipherResult<Vec<u8>>;
 
 pub struct CipherRegistry {
-    enciphers: HashMap<String, Box<EncryptFn>>,
-    deciphers: HashMap<String, Box<EncryptFn>>,
+    encrypt_functions: HashMap<String, Box<EncryptFn>>,
+    decrypt_functions: HashMap<String, Box<EncryptFn>>,
 }
 
 impl CipherRegistry {
     pub fn new() -> Self {
         Self {
-            enciphers: HashMap::new(),
-            deciphers: HashMap::new(),
+            encrypt_functions: HashMap::new(),
+            decrypt_functions: HashMap::new(),
         }
     }
 
-    pub fn register_encipher(&mut self, name: &str, encrypt_fn: Box<EncryptFn>) {
-        self.enciphers.insert(name.to_owned(), encrypt_fn);
+    pub fn register(&mut self, name: &str, encrypt_fn: Box<EncryptFn>, decrypt_fn: Box<DecryptFn>) {
+        self.encrypt_functions.insert(name.to_owned(), encrypt_fn);
+        self.decrypt_functions.insert(name.to_owned(), decrypt_fn);
     }
 
-    pub fn register_decipher(&mut self, name: &str, decrypt_fn: Box<DecryptFn>) {
-        self.deciphers.insert(name.to_owned(), decrypt_fn);
+    pub fn get_encryptor(&self, name: &str) -> &Box<EncryptFn> {
+        self.encrypt_functions.get(name).unwrap()
     }
 
-    pub fn get_encipher(&self, name: &str) -> &Box<EncryptFn> {
-        self.enciphers.get(name).unwrap()
-    }
-
-    pub fn get_decipher(&self, name: &str) -> &Box<DecryptFn> {
-        self.deciphers.get(name).unwrap()
+    pub fn get_decryptor(&self, name: &str) -> &Box<DecryptFn> {
+        self.decrypt_functions.get(name).unwrap()
     }
 }
 
 impl Default for CipherRegistry {
     fn default() -> Self {
         let mut registry = CipherRegistry::new();
-        registry.register_encipher("aes-gcm", Box::new(aes_encrypt));
-        registry.register_decipher("aes-gcm", Box::new(aes_decrypt));
+        registry.register("aes-gcm", Box::new(aes_encrypt), Box::new(aes_decrypt));
         registry
     }
 }
@@ -54,35 +50,35 @@ fn aes_encrypt(
     data: &[u8],
     key: &[u8],
     mut extras: HashMap<String, &[u8]>,
-) -> EncryptResult<Vec<u8>> {
+) -> CipherResult<Vec<u8>> {
     let key = GenericArray::<u8, <Aes256Gcm as KeySizeUser>::KeySize>::from_slice(key);
     let cipher = Aes256Gcm::new(&key);
     let nonce = extras
         .remove("nonce")
-        .ok_or(EncryptError::MissingRequiredExtra("nonce".to_owned()))?;
+        .ok_or(CipherError::MissingRequiredExtra("nonce".to_owned()))?;
     let encrypted = cipher.encrypt(Nonce::from_slice(nonce), data);
-    encrypted.map_err(|_| EncryptError::EncryptionError)
+    encrypted.map_err(|_| CipherError::EncryptionError)
 }
 
 fn aes_decrypt(
     data: &[u8],
     key: &[u8],
     mut extras: HashMap<String, &[u8]>,
-) -> EncryptResult<Vec<u8>> {
+) -> CipherResult<Vec<u8>> {
     let key = GenericArray::<u8, <Aes256Gcm as KeySizeUser>::KeySize>::from_slice(key);
     let cipher = Aes256Gcm::new(&key);
     let nonce = extras
         .remove("nonce")
-        .ok_or(EncryptError::MissingRequiredExtra("nonce".to_owned()))?;
+        .ok_or(CipherError::MissingRequiredExtra("nonce".to_owned()))?;
     let encrypted = cipher.decrypt(Nonce::from_slice(nonce), data);
-    encrypted.map_err(|_| EncryptError::EncryptionError)
+    encrypted.map_err(|_| CipherError::EncryptionError)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        encrypt::{aes_encrypt, CipherRegistry},
-        error::EncryptError,
+        cipher::{aes_encrypt, CipherRegistry},
+        error::CipherError,
     };
     use aes_gcm::{Aes256Gcm, KeySizeUser};
     use std::collections::HashMap;
@@ -115,7 +111,7 @@ mod tests {
         let result = aes_encrypt(data, key, extras);
         assert_eq!(
             result,
-            Err(EncryptError::MissingRequiredExtra("nonce".to_owned()))
+            Err(CipherError::MissingRequiredExtra("nonce".to_owned()))
         );
     }
 
@@ -153,7 +149,7 @@ mod tests {
         let result = aes_decrypt(&encrypted, key, extras);
         assert_eq!(
             result,
-            Err(EncryptError::MissingRequiredExtra("nonce".to_owned()))
+            Err(CipherError::MissingRequiredExtra("nonce".to_owned()))
         );
     }
 
@@ -168,7 +164,7 @@ mod tests {
         let mut extras = HashMap::new();
         extras.insert("nonce".to_owned(), nonce);
         let registry = CipherRegistry::default();
-        let encrypt = registry.get_encipher("aes-gcm");
+        let encrypt = registry.get_encryptor("aes-gcm");
         let result = encrypt(data, key, extras);
         assert!(result.is_ok());
     }
@@ -186,7 +182,7 @@ mod tests {
         let result = aes_encrypt(data, key, extras.clone());
         let encrypted = result.unwrap();
         let registry = CipherRegistry::default();
-        let decrypt = registry.get_decipher("aes-gcm");
+        let decrypt = registry.get_decryptor("aes-gcm");
         let result = decrypt(&encrypted, key, extras);
         assert!(result.is_ok());
         let decrypted = result.unwrap();

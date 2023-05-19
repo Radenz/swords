@@ -14,7 +14,7 @@ pub enum ParseError {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum EncryptError {
+pub enum CipherError {
     MissingRequiredExtra(String),
     EncryptionError,
 }

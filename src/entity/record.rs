@@ -50,6 +50,7 @@ impl Record {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
+        bytes.push(RECORD_STARTER_BYTE);
         bytes.extend_from_slice(&Self::label_bytes());
         bytes.extend_from_slice(&Value::str_to_bytes(&self.label, false));
         bytes.extend_from_slice(&Self::secret_bytes());

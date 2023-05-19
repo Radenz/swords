@@ -5,7 +5,7 @@ use crate::{
     entity::{
         collection::{Collection, COLLECTION_ENDER_BYTE, COLLECTION_STARTER_BYTE},
         record::{Record, RECORD_STARTER_BYTE},
-        value::{Value, SECRET_VALUE_STARTER_BYTE, VALUE_STARTER_BYTE},
+        value::{Value, SECRET_VALUE_STARTER_BYTE, VALUE_LENGTH_BYTES_LENGTH, VALUE_STARTER_BYTE},
         Entries, Header, Swd, VERSION_BYTES_LENGTH,
     },
     error::ParseError,
@@ -130,9 +130,13 @@ impl<'a> Parser<'a> {
             VALUE_STARTER_BYTE
         };
         self.ensure_starter_byte(starter_byte)?;
-        self.ensure_remaining_length_or(2, ParseError::UnexpectedEndOfFile)?;
+        self.ensure_remaining_length_or(
+            VALUE_LENGTH_BYTES_LENGTH,
+            ParseError::UnexpectedEndOfFile,
+        )?;
 
-        let (length_bytes, remaining_input) = self.remaining_input.split_at(2);
+        let (length_bytes, remaining_input) =
+            self.remaining_input.split_at(VALUE_LENGTH_BYTES_LENGTH);
         self.remaining_input = remaining_input;
         let length: usize = u16::from_be_bytes(length_bytes.try_into().unwrap()) as usize;
 

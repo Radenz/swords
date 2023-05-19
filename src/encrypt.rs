@@ -31,6 +31,14 @@ impl CipherRegistry {
     pub fn register_decipher(&mut self, name: &str, decrypt_fn: Box<DecryptFn>) {
         self.deciphers.insert(name.to_owned(), decrypt_fn);
     }
+
+    pub fn get_encipher(&self, name: &str) -> &Box<EncryptFn> {
+        self.enciphers.get(name).unwrap()
+    }
+
+    pub fn get_decipher(&self, name: &str) -> &Box<DecryptFn> {
+        self.deciphers.get(name).unwrap()
+    }
 }
 
 impl Default for CipherRegistry {
@@ -72,7 +80,10 @@ fn aes_decrypt(
 
 #[cfg(test)]
 mod tests {
-    use crate::{encrypt::aes_encrypt, error::EncryptError};
+    use crate::{
+        encrypt::{aes_encrypt, CipherRegistry},
+        error::EncryptError,
+    };
     use aes_gcm::{Aes256Gcm, KeySizeUser};
     use std::collections::HashMap;
 
@@ -144,5 +155,41 @@ mod tests {
             result,
             Err(EncryptError::MissingRequiredExtra("nonce".to_owned()))
         );
+    }
+
+    #[test]
+    fn registry_encrypt_ok() {
+        let key: &mut [u8] = &mut [0u8; 32];
+        for i in 0..32 {
+            key[i] = i as u8;
+        }
+        let data = b"Example dummy data";
+        let nonce: &[u8] = b"dummy nonce ";
+        let mut extras = HashMap::new();
+        extras.insert("nonce".to_owned(), nonce);
+        let registry = CipherRegistry::default();
+        let encrypt = registry.get_encipher("aes-gcm");
+        let result = encrypt(data, key, extras);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn registry_decrypt_ok() {
+        let key: &mut [u8] = &mut [0u8; 32];
+        for i in 0..32 {
+            key[i] = i as u8;
+        }
+        let data = b"Example dummy data";
+        let nonce: &[u8] = b"dummy nonce ";
+        let mut extras = HashMap::new();
+        extras.insert("nonce".to_owned(), nonce);
+        let result = aes_encrypt(data, key, extras.clone());
+        let encrypted = result.unwrap();
+        let registry = CipherRegistry::default();
+        let decrypt = registry.get_decipher("aes-gcm");
+        let result = decrypt(&encrypted, key, extras);
+        assert!(result.is_ok());
+        let decrypted = result.unwrap();
+        assert_eq!(&decrypted, data);
     }
 }

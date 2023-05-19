@@ -44,6 +44,11 @@ impl Record {
         self.revealed_secret.as_ref()
     }
 
+    pub fn add_extra(&mut self, key: &str, value: &[u8], is_secret: bool) {
+        self.extras
+            .insert(key.to_owned(), Value::new(value, is_secret));
+    }
+
     pub fn reveal(&mut self, encrypt_fn: impl FnOnce(&[u8], &[u8]) -> bool) {
         unimplemented!()
     }

@@ -20,10 +20,10 @@ pub const REQUIRED_HEADER_FIELDS: [&str; 4] = ["v", "mkhf", "khf", "salt"];
 pub struct Header {
     version: u32,
     master_key_hash_function_name: String,
-    master_key_hash_function: Option<HashFunction>,
+    master_key_hash_function: Option<Box<HashFunction>>,
     salt: String,
     key_hash_function_name: String,
-    key_hash_function: Option<HashFunction>,
+    key_hash_function: Option<Box<HashFunction>>,
     extras: Entries,
 }
 

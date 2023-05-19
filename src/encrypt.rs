@@ -37,7 +37,7 @@ impl Default for CipherRegistry {
     fn default() -> Self {
         let mut registry = CipherRegistry::new();
         registry.register_encipher("aes-gcm", Box::new(aes_encrypt));
-        registry.register_encipher("aes-gcm", Box::new(aes_decrypt));
+        registry.register_decipher("aes-gcm", Box::new(aes_decrypt));
         registry
     }
 }

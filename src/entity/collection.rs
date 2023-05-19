@@ -37,7 +37,12 @@ pub struct Collection {
 
 impl Collection {
     pub fn new(label: String) -> Self {
-        unimplemented!()
+        Self {
+            label,
+            children: vec![],
+            records: vec![],
+            extras: HashMap::new(),
+        }
     }
 
     pub fn label(&self) -> &String {
@@ -50,6 +55,23 @@ impl Collection {
 
     pub fn records(&self) -> &Vec<Record> {
         &self.records
+    }
+
+    pub fn set_label(&mut self, label: &str) {
+        self.label = label.to_owned();
+    }
+
+    pub fn add_extra(&mut self, key: &str, value: &[u8], is_secret: bool) {
+        self.extras
+            .insert(key.to_owned(), Value::new(value, is_secret));
+    }
+
+    pub fn add_record(&mut self, record: Record) {
+        self.records.push(record);
+    }
+
+    pub fn add_child(&mut self, child: Collection) {
+        self.children.push(child);
     }
 }
 

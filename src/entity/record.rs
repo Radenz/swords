@@ -39,6 +39,14 @@ impl Record {
     pub fn secret(&self) -> &Box<[u8]> {
         &self.secret
     }
+
+    pub fn revealed_secret(&self) -> Option<&String> {
+        self.revealed_secret.as_ref()
+    }
+
+    pub fn reveal(&mut self, encrypt_fn: impl FnOnce(&[u8], &[u8]) -> bool) {
+        unimplemented!()
+    }
 }
 
 impl TryFrom<Entries> for Record {

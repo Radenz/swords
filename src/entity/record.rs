@@ -44,6 +44,10 @@ impl Record {
         self.revealed_secret.as_ref()
     }
 
+    pub fn get_extra(&self, key: &str) -> Option<&Value> {
+        self.extras.get(key)
+    }
+
     pub fn add_extra(&mut self, key: &str, value: &[u8], is_secret: bool) {
         self.extras
             .insert(key.to_owned(), Value::new(value, is_secret));

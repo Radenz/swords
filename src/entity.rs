@@ -50,13 +50,35 @@ impl Swd {
         }
     }
 
-    pub fn access(&mut self, master_key: &[u8]) -> bool {
+    pub fn unlock(&mut self, master_key: &[u8]) -> bool {
         let valid = self.validate_master_key(master_key);
         if !valid {
             return false;
         }
         self.populate_key(master_key);
         true
+    }
+
+    pub fn header(&self) -> &Header {
+        &self.header
+    }
+
+    pub fn add_extra(&mut self, key: &str, value: &[u8], is_secret: bool) {
+        self.header
+            .extras
+            .insert(key.to_owned(), Value::new(value, is_secret));
+    }
+
+    pub fn get_extra(&self, key: &str) -> Option<&Value> {
+        self.header.extras.get(key)
+    }
+
+    pub fn get_root(&self) -> &Collection {
+        &self.root
+    }
+
+    pub fn get_root_mut(&mut self) -> &mut Collection {
+        &mut self.root
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

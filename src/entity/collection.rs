@@ -57,6 +57,22 @@ impl Collection {
         &self.records
     }
 
+    pub fn get_record(&self, index: usize) -> Option<&Record> {
+        self.records.get(index)
+    }
+
+    pub fn get_record_mut(&mut self, index: usize) -> Option<&mut Record> {
+        self.records.get_mut(index)
+    }
+
+    pub fn get_child(&self, index: usize) -> Option<&Collection> {
+        self.children.get(index)
+    }
+
+    pub fn get_child_mut(&mut self, index: usize) -> Option<&mut Collection> {
+        self.children.get_mut(index)
+    }
+
     pub fn set_label(&mut self, label: &str) {
         self.label = label.to_owned();
     }
@@ -64,6 +80,10 @@ impl Collection {
     pub fn add_extra(&mut self, key: &str, value: &[u8], is_secret: bool) {
         self.extras
             .insert(key.to_owned(), Value::new(value, is_secret));
+    }
+
+    pub fn get_extra(&self, key: &str) -> Option<&Value> {
+        self.extras.get(key)
     }
 
     pub fn add_record(&mut self, record: Record) {

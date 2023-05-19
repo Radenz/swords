@@ -21,19 +21,6 @@ pub struct Swd {
     hash_function_registry: HashFunctionRegistry,
 }
 
-pub const REQUIRED_HEADER_FIELDS: [&str; 6] = ["v", "mkhf", "khf", "mks", "ks", "mkh"];
-
-pub struct Header {
-    version: u32,
-    master_key_hash_fn: String,
-    key_hash_fn: String,
-    master_key_hash: Vec<u8>,
-    master_key_salt: Vec<u8>,
-    key_salt: Vec<u8>,
-    key: Option<Vec<u8>>,
-    extras: Entries,
-}
-
 impl Swd {
     pub fn new(
         header: Header,
@@ -72,6 +59,13 @@ impl Swd {
         true
     }
 
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![];
+        bytes.extend_from_slice(&self.header.to_bytes());
+        bytes.extend_from_slice(&self.root.to_bytes());
+        bytes
+    }
+
     fn validate_master_key(&self, master_key: &[u8]) -> bool {
         let hash = self.get_master_key_hash_fn();
         let mut master_key = master_key.to_vec();
@@ -101,6 +95,19 @@ impl Swd {
         hash_fn
     }
 }
+
+pub struct Header {
+    version: u32,
+    master_key_hash_fn: String,
+    key_hash_fn: String,
+    master_key_hash: Vec<u8>,
+    master_key_salt: Vec<u8>,
+    key_salt: Vec<u8>,
+    key: Option<Vec<u8>>,
+    extras: Entries,
+}
+
+pub const REQUIRED_HEADER_FIELDS: [&str; 6] = ["v", "mkhf", "khf", "mks", "ks", "mkh"];
 
 impl Header {
     pub fn new(
@@ -150,6 +157,33 @@ impl Header {
 
     pub fn get_key(&self) -> Option<&Vec<u8>> {
         self.key.as_ref()
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![];
+        bytes.extend_from_slice(&Value::str_to_bytes("v", false));
+        bytes.extend_from_slice(&self.version_bytes());
+        bytes.extend_from_slice(&Value::str_to_bytes("mkhf", false));
+        bytes.extend_from_slice(&Value::str_to_bytes(&self.master_key_hash_fn(), false));
+        bytes.extend_from_slice(&Value::str_to_bytes("khf", false));
+        bytes.extend_from_slice(&Value::str_to_bytes(&self.key_hash_fn(), false));
+        bytes.extend_from_slice(&Value::str_to_bytes("mks", false));
+        bytes.extend_from_slice(self.master_key_salt());
+        bytes.extend_from_slice(&Value::str_to_bytes("ks", false));
+        bytes.extend_from_slice(self.key_salt());
+        bytes.extend_from_slice(&Value::str_to_bytes("mkh", false));
+        bytes.extend_from_slice(self.master_key_hash());
+
+        for (key, value) in self.extras.iter() {
+            bytes.extend_from_slice(&Value::str_to_bytes(key, false));
+            bytes.extend_from_slice(&value.to_bytes());
+        }
+
+        bytes
+    }
+
+    fn version_bytes(&self) -> [u8; 4] {
+        self.version.to_be_bytes()
     }
 }
 

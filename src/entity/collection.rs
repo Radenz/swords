@@ -73,6 +73,27 @@ impl Collection {
     pub fn add_child(&mut self, child: Collection) {
         self.children.push(child);
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![];
+        bytes.push(COLLECTION_STARTER_BYTE);
+
+        for (key, value) in self.extras.iter() {
+            bytes.extend_from_slice(&Value::str_to_bytes(key, false));
+            bytes.extend_from_slice(&value.to_bytes());
+        }
+
+        for collection in self.children.iter() {
+            bytes.extend_from_slice(&collection.to_bytes());
+        }
+
+        for record in self.records.iter() {
+            bytes.extend_from_slice(&record.to_bytes());
+        }
+
+        bytes.push(COLLECTION_ENDER_BYTE);
+        bytes
+    }
 }
 
 impl TryFrom<(Vec<Collection>, Vec<Record>, Entries)> for Collection {

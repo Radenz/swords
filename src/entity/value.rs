@@ -36,6 +36,10 @@ impl Value {
         self.value
     }
 
+    pub fn str_to_bytes(string: &str, is_secret: bool) -> Vec<u8> {
+        Self::new(string.as_bytes(), is_secret).to_bytes()
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let length = self.value.len();
         let size = length + VALUE_LENGTH_BYTES_LENGTH;

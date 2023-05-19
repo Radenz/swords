@@ -47,6 +47,29 @@ impl Record {
     pub fn reveal(&mut self, encrypt_fn: impl FnOnce(&[u8], &[u8]) -> bool) {
         unimplemented!()
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![];
+        bytes.extend_from_slice(&Self::label_bytes());
+        bytes.extend_from_slice(&Value::str_to_bytes(&self.label, false));
+        bytes.extend_from_slice(&Self::secret_bytes());
+        bytes.extend_from_slice(&Value::new(&self.secret, true).to_bytes());
+
+        for (key, value) in self.extras.iter() {
+            bytes.extend_from_slice(&Value::str_to_bytes(key, false));
+            bytes.extend_from_slice(&value.to_bytes());
+        }
+
+        bytes
+    }
+
+    fn label_bytes() -> Vec<u8> {
+        Value::new(b"label", false).to_bytes()
+    }
+
+    fn secret_bytes() -> Vec<u8> {
+        Value::new(b"secret", false).to_bytes()
+    }
 }
 
 impl TryFrom<Entries> for Record {

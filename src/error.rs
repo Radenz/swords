@@ -12,3 +12,9 @@ pub enum ParseError {
     UnexpectedEndOfValue(usize, usize),
     EncodingError(Utf8Error),
 }
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum EncryptError {
+    MissingRequiredExtra(String),
+    EncryptionError,
+}

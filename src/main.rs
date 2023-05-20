@@ -2,7 +2,7 @@
 
 use std::{
     collections::HashMap,
-    fs::{read, File},
+    fs::{self, read, File},
     io::{stdout, Write},
     ops::Index,
     path::Path,
@@ -44,9 +44,12 @@ fn main() {
     match command {
         Commands::New(args) => new(args),
         Commands::Open(args) => {
+            let file_path = args.file_path.clone();
             let result = open(args);
-            if let Some(swd) = result {
-                interact(swd);
+            if let Some(mut swd) = result {
+                swd = interact(swd);
+                save(file_path, swd);
+                execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0));
             }
         }
     }
@@ -173,6 +176,17 @@ fn open(args: OpenArgs) -> Option<Swd> {
     Some(result.unwrap())
 }
 
+fn save(mut file_path: String, swd: Swd) {
+    if !file_path.ends_with(".swd") {
+        file_path.push_str(".swd");
+    }
+
+    if !file_exists(&file_path) {
+        File::create(&file_path);
+    }
+    fs::write(file_path, &swd.to_bytes());
+}
+
 const ROOT_MENU: [&str; 5] = [
     "Collections",
     "Records",
@@ -197,7 +211,7 @@ struct CliState<'a> {
     key: Vec<u8>,
 }
 
-fn interact(mut swd: Swd) {
+fn interact(mut swd: Swd) -> Swd {
     authenticate(&mut swd);
 
     let cipher_name = swd.header().key_cipher();
@@ -226,7 +240,7 @@ fn interact(mut swd: Swd) {
             "New Collection" => add_new_collection(swd.get_root_mut(), &mut state),
             "New Record" => add_new_record(swd.get_root_mut(), &mut state),
             "Exit" => {
-                todo!("save")
+                return swd;
             }
             _ => unreachable!(),
         }

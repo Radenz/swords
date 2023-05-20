@@ -1,6 +1,6 @@
 [package]
 name = "swords"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 author = "Raden Rifqi Rahman"
 description = "A simple, extensible, and portable password manager file format."

@@ -22,6 +22,10 @@ impl HashFunctionRegistry {
     pub fn get_function(&self, name: &str) -> &Box<HashFunction> {
         self.functions.get(name).unwrap()
     }
+
+    pub fn get_names(&self) -> Vec<&String> {
+        self.functions.keys().collect()
+    }
 }
 
 impl Default for HashFunctionRegistry {

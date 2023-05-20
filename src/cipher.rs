@@ -36,6 +36,10 @@ impl CipherRegistry {
     pub fn get_decryptor(&self, name: &str) -> &Box<DecryptFn> {
         self.decrypt_functions.get(name).unwrap()
     }
+
+    pub fn get_names(&self) -> Vec<&String> {
+        self.encrypt_functions.keys().collect()
+    }
 }
 
 impl Default for CipherRegistry {

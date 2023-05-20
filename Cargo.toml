@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 aes-gcm = "0.10.1"
+arboard = "3.2.0"
 clap = { version = "4.3.0", features = ["derive"] }
 crossterm = "0.26.1"
 inquire = "0.6.2"

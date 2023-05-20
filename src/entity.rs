@@ -123,19 +123,21 @@ pub struct Header {
     master_key_hash_fn: String,
     key_hash_fn: String,
     master_key_hash: Vec<u8>,
+    key_cipher: String,
     master_key_salt: Vec<u8>,
     key_salt: Vec<u8>,
     key: Option<Vec<u8>>,
     extras: Entries,
 }
 
-pub const REQUIRED_HEADER_FIELDS: [&str; 6] = ["v", "mkhf", "khf", "mks", "ks", "mkh"];
+pub const REQUIRED_HEADER_FIELDS: [&str; 7] = ["v", "mkhf", "khf", "mks", "ks", "mkh", "kc"];
 
 impl Header {
     pub fn new(
         version: u32,
         master_key_hash_function_name: String,
         key_hash_function_name: String,
+        key_cipher: String,
         master_key_hash: &[u8],
         master_key_salt: &[u8],
         key_salt: &[u8],
@@ -145,6 +147,7 @@ impl Header {
             version,
             master_key_hash_fn: master_key_hash_function_name,
             key_hash_fn: key_hash_function_name,
+            key_cipher,
             master_key_hash: master_key_hash.to_vec(),
             master_key_salt: master_key_salt.to_vec(),
             key_salt: key_salt.to_vec(),
@@ -229,6 +232,7 @@ impl TryFrom<Entries> for Header {
         let version = u32::from_be_bytes((version_bytes[0..4]).try_into().unwrap());
         let master_key_hash_fn = raw_header.remove("mkhf").unwrap().parse_string()?;
         let key_hash_fn = raw_header.remove("khf").unwrap().parse_string()?;
+        let key_cipher = raw_header.remove("kc").unwrap().parse_string()?;
         let master_key_salt = raw_header.remove("mks").unwrap().take();
         let key_salt = raw_header.remove("ks").unwrap().take();
         let master_key_hash = raw_header.remove("mkh").unwrap().take();
@@ -237,6 +241,7 @@ impl TryFrom<Entries> for Header {
             0,
             master_key_hash_fn,
             key_hash_fn,
+            key_cipher,
             &master_key_hash,
             &master_key_salt,
             &key_salt,

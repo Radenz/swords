@@ -5,7 +5,6 @@ edition = "2021"
 author = "Raden Rifqi Rahman"
 description = "A simple, extensible, and portable password manager file format."
 repository = "https://github.com/Radenz/swords"
-license = "MIT"
 license-file = "LICENSE"
 readme = "README.md"
 

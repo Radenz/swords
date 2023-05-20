@@ -3,6 +3,7 @@ use crate::{
     cipher::CipherRegistry,
     error::ParseError,
     hash::{HashFunction, HashFunctionRegistry},
+    util::MAGIC_NUMBER,
 };
 use std::collections::HashMap;
 
@@ -83,6 +84,7 @@ impl Swd {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
+        bytes.extend_from_slice(&MAGIC_NUMBER);
         bytes.extend_from_slice(&self.header.to_bytes());
         bytes.extend_from_slice(&self.root.to_bytes());
         bytes

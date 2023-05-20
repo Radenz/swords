@@ -15,7 +15,7 @@ use crate::{
 
 pub type ParseResult<T> = Result<T, ParseError>;
 
-struct Parser<'a> {
+pub struct Parser<'a> {
     remaining_input: &'a [u8],
 }
 

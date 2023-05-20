@@ -36,10 +36,7 @@ use swords::{
 const VERSION: u32 = 1;
 
 fn main() {
-    // let Cli { command } = Cli::parse();
-    let command = Commands::Open(OpenArgs {
-        file_path: "passwords".to_owned(),
-    });
+    let Cli { command } = Cli::parse();
 
     match command {
         Commands::New(args) => new(args),

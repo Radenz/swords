@@ -178,6 +178,10 @@ impl Header {
         &self.key_salt
     }
 
+    pub fn key_cipher(&self) -> &String {
+        &self.key_cipher
+    }
+
     pub fn set_key(&mut self, key: Vec<u8>) {
         self.key = Some(key);
     }
@@ -189,17 +193,19 @@ impl Header {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
         bytes.extend_from_slice(&Value::str_to_bytes("v", false));
-        bytes.extend_from_slice(&self.version_bytes());
+        bytes.extend_from_slice(&Value::new(&self.version_bytes(), false).to_bytes());
         bytes.extend_from_slice(&Value::str_to_bytes("mkhf", false));
         bytes.extend_from_slice(&Value::str_to_bytes(&self.master_key_hash_fn(), false));
         bytes.extend_from_slice(&Value::str_to_bytes("khf", false));
         bytes.extend_from_slice(&Value::str_to_bytes(&self.key_hash_fn(), false));
+        bytes.extend_from_slice(&Value::str_to_bytes("kc", false));
+        bytes.extend_from_slice(&Value::str_to_bytes(self.key_cipher(), false));
         bytes.extend_from_slice(&Value::str_to_bytes("mks", false));
-        bytes.extend_from_slice(self.master_key_salt());
+        bytes.extend_from_slice(&Value::new(self.master_key_salt(), false).to_bytes());
         bytes.extend_from_slice(&Value::str_to_bytes("ks", false));
-        bytes.extend_from_slice(self.key_salt());
+        bytes.extend_from_slice(&Value::new(self.key_salt(), false).to_bytes());
         bytes.extend_from_slice(&Value::str_to_bytes("mkh", false));
-        bytes.extend_from_slice(self.master_key_hash());
+        bytes.extend_from_slice(&Value::new(self.master_key_hash(), false).to_bytes());
 
         for (key, value) in self.extras.iter() {
             bytes.extend_from_slice(&Value::str_to_bytes(key, false));
@@ -227,7 +233,7 @@ impl TryFrom<Entries> for Header {
             }
         }
 
-        let version_bytes = raw_header.remove("mkhf").unwrap().take();
+        let version_bytes = raw_header.remove("v").unwrap().take();
         if version_bytes.len() != VERSION_BYTES_LENGTH {
             return Err(ParseError::InvalidVersionNumber);
         }

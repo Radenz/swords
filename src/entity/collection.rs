@@ -94,9 +94,15 @@ impl Collection {
         self.children.push(child);
     }
 
+    fn label_bytes() -> Vec<u8> {
+        Value::new(b"label", false).to_bytes()
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
         bytes.push(COLLECTION_STARTER_BYTE);
+        bytes.extend_from_slice(&Self::label_bytes());
+        bytes.extend_from_slice(&Value::str_to_bytes(&self.label, false));
 
         for (key, value) in self.extras.iter() {
             bytes.extend_from_slice(&Value::str_to_bytes(key, false));

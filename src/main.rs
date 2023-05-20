@@ -208,7 +208,7 @@ fn interact(mut swd: Swd) {
     let key = swd.header().get_key().unwrap().clone();
 
     let mut state = CliState {
-        path: vec![],
+        path: vec![swd.get_root().label().clone()],
         key,
         cipher: (encrypt, decrypt),
     };
@@ -223,7 +223,7 @@ fn interact(mut swd: Swd) {
         match menu {
             "Collections" => show_collections(swd.get_root_mut(), &mut state),
             "Records" => show_records(swd.get_root_mut(), &mut state),
-            "New Collections" => add_new_collection(swd.get_root_mut(), &mut state),
+            "New Collection" => add_new_collection(swd.get_root_mut(), &mut state),
             "New Record" => add_new_record(swd.get_root_mut(), &mut state),
             "Exit" => {
                 todo!("save")
@@ -235,18 +235,19 @@ fn interact(mut swd: Swd) {
 
 fn interact_collection(collection: &mut Collection, state: &mut CliState) {
     state.path.push(collection.label().to_owned());
+    let path = state.path.join("/");
 
     loop {
         execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0));
 
-        let menu = Select::new(collection.label(), COLLECTION_MENU.to_vec())
+        let menu = Select::new(&path, COLLECTION_MENU.to_vec())
             .prompt()
             .expect("there was an error while selecting");
 
         match menu {
             "Collections" => show_collections(collection, state),
             "Records" => show_records(collection, state),
-            "New Collections" => add_new_collection(collection, state),
+            "New Collection" => add_new_collection(collection, state),
             "New Record" => add_new_record(collection, state),
             "Back" => {
                 state.path.pop();
@@ -324,7 +325,7 @@ fn interact_record(record: &mut Record, state: &mut CliState) {
     loop {
         execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0));
 
-        let menu = Select::new(&format!("/{}", path), RECORD_MENU.to_vec())
+        let menu = Select::new(&format!("{}", path), RECORD_MENU.to_vec())
             .prompt()
             .expect("there was an error while selecting");
 

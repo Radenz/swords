@@ -1,6 +1,6 @@
 use self::{collection::Collection, value::Value};
 use crate::{
-    cipher::CipherRegistry,
+    cipher::{CipherRegistry, DecryptFn, EncryptFn},
     error::ParseError,
     hash::{HashFunction, HashFunctionRegistry},
     util::MAGIC_NUMBER,
@@ -82,6 +82,10 @@ impl Swd {
         &mut self.root
     }
 
+    pub fn cipher_registry(&self) -> &CipherRegistry {
+        &self.cipher_registry
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
         bytes.extend_from_slice(&MAGIC_NUMBER);
@@ -117,6 +121,13 @@ impl Swd {
         let key_hash_fn = self.header.key_hash_fn();
         let hash_fn = self.hash_function_registry.get_function(key_hash_fn);
         hash_fn
+    }
+
+    pub fn get_key_cipher(&self) -> (&Box<EncryptFn>, &Box<DecryptFn>) {
+        let key_cipher = self.header.key_cipher();
+        let encryptor = self.cipher_registry.get_encryptor(key_cipher);
+        let decryptor = self.cipher_registry.get_decryptor(key_cipher);
+        (encryptor, decryptor)
     }
 }
 

@@ -10,6 +10,7 @@ use crate::error::CipherError;
 pub type CipherResult<T> = Result<T, CipherError>;
 pub type EncryptFn = dyn Fn(&[u8], &[u8], HashMap<String, &[u8]>) -> CipherResult<Vec<u8>>;
 pub type DecryptFn = dyn Fn(&[u8], &[u8], HashMap<String, &[u8]>) -> CipherResult<Vec<u8>>;
+pub type Cipher<'a> = (&'a Box<EncryptFn>, &'a Box<DecryptFn>);
 
 pub struct CipherRegistry {
     encrypt_functions: HashMap<String, Box<EncryptFn>>,

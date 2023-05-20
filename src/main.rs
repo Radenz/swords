@@ -70,10 +70,19 @@ fn new(args: NewArgs) {
 
     let master_key = loop {
         let result = Password::new("Master key:")
+            .with_help_message("Must consists of at least 8 characters")
             .with_display_mode(PasswordDisplayMode::Masked)
             .prompt();
         match result {
             Ok(password) if password.len() > 8 => break password,
+            Ok(_) => {
+                execute!(
+                    stdout(),
+                    SetForegroundColor(Color::Red),
+                    Print("Master key is too short!\n"),
+                    ResetColor
+                );
+            }
             _ => continue,
         }
     };

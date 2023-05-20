@@ -3,6 +3,11 @@ name = "swords"
 version = "1.0.0"
 edition = "2021"
 author = "Raden Rifqi Rahman"
+description = "A simple, extensible, and portable password manager file format."
+repository = "https://github.com/Radenz/swords"
+license = "MIT"
+license-file = "LICENSE"
+readme = "README.md"
 
 [dependencies]
 aes-gcm = "0.10.1"
